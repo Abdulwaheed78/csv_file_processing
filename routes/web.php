@@ -27,4 +27,8 @@ Route::get('/download-prepared-csv/{filename}', [CsvController::class, 'download
 Route::get('/prev',[CsvController::class,'prev'])->name('prev');
 Route::get('/clean',[CsvController::class,'clean'])->name('clean');
 Route::post('/clean',[CsvController::class,'clean'])->name('clean');
+Route::get('/auto-clean',[CsvController::class,'auto_clean'])->name('auto-clean');
+Route::post('/auto-clean',[CsvController::class,'auto_clean'])->name('auto-clean');
+Route::get('/editcsv',[CsvController::class,'editcsv'])->name('editcsv');
+Route::post('/editcsv',[CsvController::class,'editcsv'])->name('editcsv');
 Route::get('/delete-file/{filename}', [CsvController::class,'deleteFile'])->name('deleteFile');

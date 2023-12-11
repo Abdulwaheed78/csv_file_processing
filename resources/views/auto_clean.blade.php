@@ -74,7 +74,7 @@
                     <h1>Upload a CSV File</h1>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('clean') }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ route('auto-clean') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-3 drag-and-drop" id="dropArea">
                             <label for="csv_file" class="form-label">Drag and drop a CSV File here or click to

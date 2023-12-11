@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Input;
 use SplFileObject;
+use League\Csv\Reader;
+use League\Csv\Writer;
+use League\Csv\Statement;
+
+
 
 class CsvController extends Controller
 {
@@ -19,14 +24,23 @@ class CsvController extends Controller
     public function upload(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'csv_file' => 'required|mimes:csv,txt',
+            'csv_file' => 'required|mimes:csv,txt,xlsx',
         ]);
 
         if ($validator->fails()) {
-            return redirect()->route('upload-csv')->with('error', 'Invalid file format.');
+            return redirect()->route('upload-csv')->with('error', 'Invalid file format. Please upload a .csv or .xlsx file.');
         }
 
         $file = $request->file('csv_file');
+
+        // Check if the file has a .csv or .xlsx extension
+        $allowedExtensions = ['csv', 'xlsx'];
+        $extension = $file->getClientOriginalExtension();
+
+        if (!in_array($extension, $allowedExtensions)) {
+            return redirect()->route('upload-csv')->with('error', 'Invalid file extension. Please upload a .csv or .xlsx file.');
+        }
+
         $fileName = 'imported_' . $file->getClientOriginalName();
         $file->move(public_path('uploads'), $fileName);
 
@@ -35,10 +49,9 @@ class CsvController extends Controller
 
     public function showCsvContent($fileName)
     {
-
         $filePath = public_path('uploads/' . $fileName);
         $csvData = [];
-        $success = "File imported Successfully"; // Set your success message here
+        $message = ''; // Add a variable for the message
 
         if (file_exists($filePath)) {
             $csv = new SplFileObject($filePath, 'r');
@@ -57,10 +70,9 @@ class CsvController extends Controller
                 }
             }
         }
-
+        $success = 'CSV file loaded successfully!'; // Set your desired success message here
         return view('showcsv', compact('csvData', 'fileName', 'success', 'totalRows', 'totalColumns'));
     }
-
 
 
     public function prepareCsv(Request $request)
@@ -90,16 +102,25 @@ class CsvController extends Controller
         // Track seen values in the target columns
         $seenValues = [];
 
+        // ...
+
         foreach ($csvData as $row) {
             $newRow = [];
             $hasTargetData = true;
 
             if (!empty($targetColumns)) {
                 $targetColumnValues = array_intersect_key($row, array_flip($targetColumns));
+
+                // Check if any target column has an empty value
+                if (in_array('', $targetColumnValues)) {
+                    // Skip this row as it has empty values in the target columns
+                    continue;
+                }
+
                 $targetColumnHash = md5(serialize($targetColumnValues));
 
                 if (in_array($targetColumnHash, $seenValues)) {
-                    // Skip this row as it has the same values in the target columns
+                    // Skip this row as it has the same values in the target columns as before
                     continue;
                 }
 
@@ -119,6 +140,9 @@ class CsvController extends Controller
             }
         }
 
+        // ...
+
+
         // Create a new file handle for writing
         $preparedCsvFileName = $newfilename;
         $newCsvFilePath = $uploadDirectory . DIRECTORY_SEPARATOR . $preparedCsvFileName;
@@ -136,33 +160,22 @@ class CsvController extends Controller
 
     private function readAndFilterCsvFile($filePath)
     {
-        $csv = new \SplFileObject($filePath, 'r');
-        $csv->setFlags(\SplFileObject::READ_CSV);
+        $csv = new SplFileObject($filePath, 'r');
+        $csv->setFlags(SplFileObject::READ_CSV);
 
         $csvData = [];
-        $headers = []; // Initialize an empty array for headers
-
-        $uniqueRows = []; // To store unique rows
+        $headers = [];
 
         foreach ($csv as $row) {
             if (!empty(array_filter($row))) {
-                // Ensure that $headers and $row have the same number of elements
                 if (empty($headers)) {
                     $headers = $row;
                 } elseif (count($headers) == count($row)) {
                     $rowData = array_combine($headers, $row);
-
-                    // Check if the row is unique
-                    $hash = md5(json_encode($rowData));
-                    if (!isset($uniqueRows[$hash])) {
-                        $uniqueRows[$hash] = $rowData;
-                    }
+                    $csvData[] = $rowData;
                 }
             }
         }
-
-        // Convert unique rows back into an array
-        $csvData = array_values($uniqueRows);
 
         return $csvData;
     }
@@ -214,8 +227,6 @@ class CsvController extends Controller
             return redirect()->back()->with('error', 'File not found.');
         }
     }
-
-
 
     public function prev()
     {
@@ -284,13 +295,24 @@ class CsvController extends Controller
     {
         // Check if the HTTP method is POST
         if ($request->isMethod('post')) {
-            // Validate the uploaded CSV file
-            $request->validate([
-                'csv_file' => 'required|mimes:csv,txt',
+            $validator = Validator::make($request->all(), [
+                'csv_file' => 'required|mimes:csv,txt,xlsx',
             ]);
+
+            if ($validator->fails()) {
+                return redirect()->route('clean')->with('error', 'Invalid file format. Please upload a .csv or .xlsx file.');
+            }
 
             // Get the uploaded CSV file
             $file = $request->file('csv_file');
+
+            // Check if the file type is allowed
+            $allowedTypes = ['csv', 'xlsx'];
+            $fileType = $file->getClientOriginalExtension();
+
+            if (!in_array($fileType, $allowedTypes)) {
+                return redirect()->back()->with('error', 'Invalid file type. Please upload a .csv or .xlsx file.');
+            }
 
             // Define the path where you want to save the uploaded CSV file
             $uploadPath = public_path('uploads');
@@ -299,17 +321,8 @@ class CsvController extends Controller
             // Save the uploaded file
             $file->move($uploadPath, $fileName);
 
-            // Define columns to delete
-            $columnsToDelete = [
-                'FacebookMessenger', 'EmailHost', 'Google_Rank', 'DomainRegistered', 'DomainExpiry',
-                'DomainNameserver', 'DomainRegistrar', 'Instagram_Followers', 'Instagram_Follows',
-                'Instagram_TotalPhotos', 'Instagram_Average_Likes', 'Instagram_Average_Comments',
-                'Instagram_Is_verified', 'Instagram_HighlightReel_Count', 'Instagram_Is_BizAccount',
-                'Instagram_AccountName', 'YelpAds', 'FBMessenger_Ads', 'FacebookAds', 'Instagram_Ads',
-                'Adwords_Ads', 'FacebookPixel', 'GooglePixel', 'CriteoPixel', 'GoogleStars',
-                'GoogleCount', 'YelpStars', 'Yelpcount', 'FacebookStars', 'Facebookcount',
-                'MainCategory', 'MobileFriendly', 'GoogleAnalytics', 'SchemaMarkup', 'UseWordpress',
-                'UseShopify', 'LinkedinAnalytics',
+            $specifiedColumns = [
+                'BusinessName', 'Telephone', 'Email', 'WebsiteURL', 'Linkedin', 'FacebookProfile', 'Instagram', 'Twitter', 'GMB_Claimed', 'Address', 'City', 'State', 'ZIP', 'Country',
             ];
 
             // Path to the saved uploaded file
@@ -319,28 +332,45 @@ class CsvController extends Controller
                 // Open the original CSV file for reading
                 $originalFile = fopen($uploadedFilePath, 'r');
 
+                // Read the header row
+                $headerRow = fgetcsv($originalFile);
+
+                // Identify columns to keep based on exact match with the specified columns
+                $columnsToKeep = [];
+                foreach ($headerRow as $index => $column) {
+                    if (in_array($column, $specifiedColumns)) {
+                        $columnsToKeep[] = $index;
+                    }
+                }
+
                 // Create a new cleaned CSV file for writing
                 $cleanedFilePath = storage_path('app/public/cleaned_file.csv');
                 $cleanedFile = fopen($cleanedFilePath, 'w');
 
-                // Write the header row to the cleaned file, excluding columns to delete
-                $header = fgetcsv($originalFile);
-                $header = array_diff($header, $columnsToDelete);
-                fputcsv($cleanedFile, $header);
-
                 $rowCount = 0; // Counter for valid entries
+
+                // Write the header row to the cleaned file
+                fputcsv($cleanedFile, $specifiedColumns);
 
                 // Loop through each row in the original CSV file
                 while (($row = fgetcsv($originalFile)) !== false) {
-                    // Check if the row has an email or phone number (assuming the columns are 0-based)
-                    $emailColumn = 2;
-                    $phoneColumn = 3;
-                    if (!empty($row[$emailColumn]) || !empty($row[$phoneColumn])) {
-                        // Exclude columns to delete
-                        $row = array_diff($row, $columnsToDelete);
-                        fputcsv($cleanedFile, $row);
-                        $rowCount++;
+                    // Check if the Email and Phone columns are not empty
+                    $emailColumn = array_search('Email', $specifiedColumns);
+                    $phoneColumn = array_search('Telephone', $specifiedColumns);
+
+                    if (empty($row[$emailColumn]) || empty($row[$phoneColumn])) {
+                        continue; // Skip this row if the Email or Phone column is empty
                     }
+
+                    // Extract only the columns you want to keep
+                    $newRow = [];
+                    foreach ($columnsToKeep as $index) {
+                        $newRow[] = $row[$index] ?? ''; // Use an empty string if the column is not found in the original row
+                    }
+
+                    // Write the row to the cleaned file
+                    fputcsv($cleanedFile, $newRow);
+                    $rowCount++;
                 }
 
                 // Close both files
@@ -366,5 +396,110 @@ class CsvController extends Controller
         }
     }
 
+    public function auto_clean(Request $request)
+    {   // Check if the HTTP method is POST
+        if ($request->isMethod('post')) {
+            $validator = Validator::make($request->all(), [
+                'csv_file' => 'required|mimes:csv,txt,xlsx',
+            ]);
 
+            if ($validator->fails()) {
+                return redirect()->route('auto-clean')->with('error', 'Invalid file format. Please upload a .csv or .xlsx file.');
+            }
+
+            // Get the uploaded CSV file
+            $file = $request->file('csv_file');
+            // Check if the file type is allowed
+            $allowedTypes = ['csv', 'xlsx'];
+            $fileType = $file->getClientOriginalExtension();
+
+            if (!in_array($fileType, $allowedTypes)) {
+                return redirect()->back()->with('error', 'Invalid file type. Please upload a .csv or .xlsx file.');
+            }
+
+            // Define the path where you want to save the uploaded CSV file
+            $uploadPath = public_path('uploads');
+            $fileName = 'uploaded_file_' . $file->getClientOriginalName();
+            // Save the uploaded file
+            $file->move($uploadPath, $fileName);
+
+            $specifiedColumns = [
+                'BusinessName', 'Telephone', 'Email', 'WebsiteURL', 'Linkedin', 'FacebookProfile', 'Instagram', 'Twitter', 'GMB_Claimed', 'Address', 'City', 'State', 'ZIP', 'Country',
+            ];
+
+            // Path to the saved uploaded file
+            $uploadedFilePath = $uploadPath . DIRECTORY_SEPARATOR . $fileName;
+
+            if (file_exists($uploadedFilePath)) {
+                // Open the original CSV file for reading
+                $originalFile = fopen($uploadedFilePath, 'r');
+
+                // Read the header row
+                $headerRow = fgetcsv($originalFile);
+
+                // Identify columns to keep based on exact match with the specified columns
+                $columnsToKeep = [];
+                foreach ($headerRow as $index => $column) {
+                    if (in_array($column, $specifiedColumns)) {
+                        $columnsToKeep[] = $index;
+                    }
+                }
+
+                // Create a new cleaned CSV file for writing
+                $cleanedFilePath = storage_path('app/public/cleaned_file.csv');
+                $cleanedFile = fopen($cleanedFilePath, 'w');
+
+                $rowCount = 0; // Counter for valid entries
+
+                // Write the header row to the cleaned file
+                fputcsv($cleanedFile, $specifiedColumns);
+
+                // Loop through each row in the original CSV file
+                while (($row = fgetcsv($originalFile)) !== false) {
+                    // Check if the Email column is empty
+                    $emailColumn = array_search('Email', $specifiedColumns);
+                    if (empty($row[$emailColumn])) {
+                        continue; // Skip this row if the Email column is empty
+                    }
+
+                    // Extract only the columns you want to keep
+                    $newRow = [];
+                    foreach ($columnsToKeep as $index) {
+                        $newRow[] = $row[$index] ?? ''; // Use an empty string if the column is not found in the original row
+                    }
+
+                    // Write the row to the cleaned file
+                    fputcsv($cleanedFile, $newRow);
+                    $rowCount++;
+                }
+
+                // Close both files
+                fclose($originalFile);
+                fclose($cleanedFile);
+
+                // Define the filename for the cleaned CSV file
+                $cleanedFilename = 'cleaned_file - ' . $rowCount . ' leads.csv';
+
+                // Move the cleaned CSV file to a public directory (replace 'your_public_path' with the actual path)
+                $publicPath = 'your_public_path'; // Set the actual path where you want to store the cleaned files
+                rename($cleanedFilePath, $publicPath . $cleanedFilename);
+
+                // Send the new cleaned CSV file for download
+                return response()->download($publicPath . $cleanedFilename, $cleanedFilename, [
+                    'Content-Type' => 'text/csv',
+                ]);
+            } else {
+                return redirect()->back()->with('error', 'No file uploaded.');
+            }
+        } else {
+            return view('auto_clean'); // Return to the 'clean' view for GET requests
+        }
+    }
+
+    public function editcsv(Request $request){
+        if($request->method == 'post'){
+        //
+        }
+        return view('filter');
+    }
 }
