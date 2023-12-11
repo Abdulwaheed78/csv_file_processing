@@ -1,3 +1,5 @@
+After downloading code first 
+composer install   and composer dump-autoload   run both commands in terminal to download all dependencies.
 CsvToolPhp-Laravel is a PHP Laravel-based tool designed for cleaning and processing CSV (Comma Separated Values) files. CSV files are a common data interchange format, but they can be messy and require cleaning and transformation for various data processing tasks. CsvToolPhp-Laravel provides a convenient way to work with CSV files in the context of a Laravel application. Here's a brief description of what it does:
 
 1. **CSV Cleaning**: It assists in cleaning and sanitizing CSV data. This might involve removing unnecessary or invalid characters, formatting data, and ensuring the data is in a consistent and usable format.
