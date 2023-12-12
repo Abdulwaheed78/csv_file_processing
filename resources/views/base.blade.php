@@ -109,7 +109,11 @@
         <a href="/auto-clean/"><i class="fas fa-envelope-open-text"></i><span style="margin-left: 10px;">Auto Clean
                 [Email]</span></a>
 
-        <a href="/editcsv/">Edit Csv</a>
+        <a href="/editcsv/">
+            <i class="fas fa-file-csv"></i>
+            <span style="margin-left: 10px;">Edit Csv</span>
+        </a>
+
         <a href="/prev/"><i class="fas fa-history"></i><span style="margin-left: 10px;">Prev Files</span></a>
     </div>
 
