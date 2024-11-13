@@ -23,9 +23,10 @@ Before you begin, ensure you have the following installed on your system:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/csv-tool.git
+   git clone https://github.com/your-username/csv-processing_tool.git
 2. cd csv-tool
 3. composer update
 4. composer dump-autoload
 5. cp .env.example .env
-6. php artisan serve
+6. generate app key
+7. php artisan serve
