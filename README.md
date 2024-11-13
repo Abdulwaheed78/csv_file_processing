@@ -1,4 +1,4 @@
-# CSV Tool
+# CSV Processing Tool
 
 CSV Tool is a Laravel-based web application designed to clean and manipulate CSV files efficiently. It provides features such as cleaning based on email and phone numbers, eliminating duplicate rows, and creating new CSV files with custom requirements. Additionally, it's equipped with upcoming features for importing CSV and Excel files with advanced editing logic.
 
